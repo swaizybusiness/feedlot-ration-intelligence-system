@@ -1,0 +1,1138 @@
+import React, { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import {
+  AlertTriangle,
+  ArrowRightLeft,
+  BarChart3,
+  Beef,
+  Bell,
+  Calculator,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
+  ClipboardList,
+  Database,
+  Droplets,
+  Factory,
+  FileSpreadsheet,
+  Filter,
+  FlaskConical,
+  FolderTree,
+  Gauge,
+  GitCompareArrows,
+  Layers3,
+  LayoutDashboard,
+  LineChart,
+  Lock,
+  Search,
+  Scale,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Target,
+  Thermometer,
+  TrendingUp,
+  Users,
+  Wallet,
+  Workflow,
+  XCircle,
+} from "lucide-react";
+import { motion as m } from "framer-motion";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+
+const pages = [
+  { key: "dashboard", label: "Dashboard Eksekutif", icon: LayoutDashboard, subtitle: "Ringkasan sistem secara cepat" },
+  { key: "architecture", label: "Arsitektur Sistem", icon: FolderTree, subtitle: "Lapisan sistem & alur besar" },
+  { key: "database", label: "Master Bahan Baku", icon: Database, subtitle: "Database bahan baku final" },
+  { key: "lab", label: "Lab & Versioning", icon: FlaskConical, subtitle: "Profile nutrisi per periode" },
+  { key: "requirements", label: "Kebutuhan Ternak", icon: Scale, subtitle: "Body weight, ADG, target nutrisi" },
+  { key: "phase", label: "Phase & Step-Up", icon: Beef, subtitle: "Starter, Grower, Finisher" },
+  { key: "dmi", label: "DMI & Air", icon: Droplets, subtitle: "Intake, suhu, kebutuhan air" },
+  { key: "formula", label: "Formula Studio", icon: Calculator, subtitle: "Komposisi, batas, compliance" },
+  { key: "compare", label: "Bandingkan Skenario", icon: GitCompareArrows, subtitle: "Ransum 1 / 2 / 3" },
+  { key: "safety", label: "Safety & QA", icon: ShieldCheck, subtitle: "Kontrol mutu & risiko" },
+  { key: "operations", label: "Operasional", icon: Factory, subtitle: "Batching, mixing, eksekusi" },
+  { key: "actual", label: "Actual vs Target", icon: Gauge, subtitle: "Realisasi dibanding rencana" },
+  { key: "governance", label: "Governance", icon: Lock, subtitle: "Approval, role, audit trail" },
+  { key: "roadmap", label: "Output & Roadmap", icon: FileSpreadsheet, subtitle: "Hasil akhir & tahap build" },
+];
+
+const dashboardStats = [
+  { title: "Cakupan Sistem", value: "14 halaman inti", hint: "Sudah mewakili desain software final", icon: Layers3 },
+  { title: "Logika Feeding", value: "3 fase + step-up", hint: "Starter • Grower • Finisher", icon: Beef },
+  { title: "Style Keputusan", value: "Manual + Controlled", hint: "Bisa diotak-atik tetapi tetap terkunci", icon: Calculator },
+  { title: "Arah Final", value: "Read → Validate → Build", hint: "Baca cepat, validasi, lalu turunkan ke engine", icon: TrendingUp },
+];
+
+const ingredientRows = [
+  { name: "Corn Silage", category: "Roughage", dm: 33.2, cp: 8.4, ndf: 45.8, tdn: 68.1, price: "Rp 1.200", phase: "Semua fase", state: "Active Lab" },
+  { name: "Ground Corn", category: "Energy", dm: 88.5, cp: 9.0, ndf: 11.5, tdn: 88.7, price: "Rp 5.400", phase: "Grower • Finisher", state: "Reference" },
+  { name: "Soybean Meal", category: "Protein", dm: 89.7, cp: 47.5, ndf: 9.2, tdn: 82.4, price: "Rp 7.800", phase: "Semua fase", state: "Reference" },
+  { name: "Palm Kernel Meal", category: "Fiber / Protein", dm: 90.1, cp: 16.8, ndf: 60.5, tdn: 66.2, price: "Rp 3.900", phase: "Grower • Finisher", state: "Archived" },
+  { name: "Molasses", category: "Energy / Additive", dm: 75.0, cp: 4.3, ndf: 0, tdn: 72.5, price: "Rp 3.600", phase: "Semua fase", state: "Draft Lab" },
+  { name: "Mineral Premix", category: "Mineral", dm: 96.0, cp: 0, ndf: 0, tdn: 0, price: "Rp 12.500", phase: "Semua fase", state: "Fixed" },
+];
+
+const architectureCards = [
+  {
+    title: "Layer 1 — Formulation Core",
+    desc: "Fondasi formulasi dan master data.",
+    items: ["Master bahan baku", "Nutrient profiles", "Formula manual %", "Constraint nutrisi", "Compare 1 / 2 / 3"],
+  },
+  {
+    title: "Layer 2 — Industrial Control",
+    desc: "Kontrol operasional dan biologis.",
+    items: ["Requirement ternak", "DMI & air", "Step-up", "Safety & QA", "Batching & mixing"],
+  },
+  {
+    title: "Layer 3 — Intelligence",
+    desc: "Lapisan keputusan dan evaluasi.",
+    items: ["Dashboard manajemen", "Actual vs target", "Biaya per head/day", "Audit trail", "Approval visibility"],
+  },
+];
+
+const workflowSteps = [
+  "Pilih profil ternak, fase, dan objective feeding",
+  "Sistem membentuk target nutrisi, DMI, dan roughage floor",
+  "User memilih bahan aktif dan profile lab terkini",
+  "Formula Studio menghitung % formula, DM, as-fed, dan biaya",
+  "Compliance engine mengecek nutrisi dan batas bahan",
+  "Scenario compare menilai Ransum 1 / 2 / 3",
+  "QA dan manajer review lalu approve formula",
+  "Operasional menurunkan formula ke batch & actual loaded",
+];
+
+const standardRules = [
+  "Semua nutrisi utama disimpan pada basis DM / BK.",
+  "Harga bahan disimpan pada basis as-fed.",
+  "Total formula wajib = 100%.",
+  "Hasil lab membuat record baru, bukan overwrite profile lama.",
+  "Setiap bahan punya batas fase, min-max inclusion, dan status aktif.",
+  "Formula final harus terkait ke fase, tanggal, active profile, dan approval state.",
+  "Compare board wajib memakai basis data yang konsisten pada periode yang sama.",
+  "Operator hanya membaca formula yang sudah locked.",
+];
+
+const labRows = [
+  { material: "Corn Silage", sample: "2026-03-22", supplier: "GreenFarm A", result: "BK turun 35.4% → 33.2%", state: "active" },
+  { material: "Molasses", sample: "2026-03-28", supplier: "SweetFeed", result: "Menunggu approval QA", state: "draft" },
+  { material: "Palm Kernel Meal", sample: "2026-02-11", supplier: "Indo Agro", result: "Disimpan untuk histori", state: "archived" },
+];
+
+const requirementRows = [
+  { label: "Body Weight", value: "350 kg" },
+  { label: "Target ADG", value: "1.35 kg/hari" },
+  { label: "Kelas Ternak", value: "Bull / Steer" },
+  { label: "Fase Aktif", value: "Grower" },
+  { label: "DMI Target", value: "8.8 kg DM/hari" },
+  { label: "TDN Target", value: "74.0% DM" },
+  { label: "CP Target", value: "14.0% DM" },
+  { label: "Roughage Floor", value: "Min 18%" },
+  { label: "Ca:P Ratio", value: "1.8 : 1" },
+  { label: "Heat Stress Mode", value: "Observed" },
+];
+
+const stepRows = [
+  { step: "Starter 1", days: "1–7", roughage: "30%", concentrate: "70%", note: "Rumen stabilization" },
+  { step: "Starter 2", days: "8–14", roughage: "24%", concentrate: "76%", note: "Transition continue" },
+  { step: "Grower 1", days: "15–28", roughage: "20%", concentrate: "80%", note: "Move to performance" },
+  { step: "Finisher", days: "29+", roughage: "14%", concentrate: "86%", note: "High energy control" },
+];
+
+const dmiStats = [
+  { title: "DMI Target", value: "8.8 kg DM", hint: "Konsumsi bahan kering target", icon: Gauge },
+  { title: "As-Fed Estimate", value: "11.9 kg", hint: "Estimasi pemberian aktual", icon: Scale },
+  { title: "Water Need", value: "34–42 L/hari", hint: "Tergantung intake & suhu", icon: Droplets },
+  { title: "Heat Alert", value: "Aktif", hint: "Suhu tinggi menekan intake", icon: Thermometer },
+];
+
+const dmiLogic = [
+  "Target intake dibentuk dari body weight, fase, dan objective feeding.",
+  "Sistem membandingkan DMI target dengan DMI implied dari formula.",
+  "Jika formula terlalu basah atau terlalu rendah roughage, warning langsung muncul.",
+  "Panel air memasukkan water need, sulfur combined risk, dan heat alert.",
+];
+
+const formulaLines = [
+  { ingredient: "Corn Silage", pct: 24, min: 14, max: 34, status: "ok" },
+  { ingredient: "Ground Corn", pct: 42, min: 25, max: 55, status: "ok" },
+  { ingredient: "Soybean Meal", pct: 16, min: 8, max: 22, status: "ok" },
+  { ingredient: "Wheat Bran", pct: 10, min: 0, max: 18, status: "ok" },
+  { ingredient: "Molasses", pct: 4, min: 0, max: 5, status: "ok" },
+  { ingredient: "Mineral Premix", pct: 4, min: 4, max: 4, status: "fixed" },
+];
+
+const complianceRows = [
+  { metric: "DM", min: 0, target: 73.5, max: 100, result: 74.1, state: "ok" },
+  { metric: "CP", min: 13.5, target: 14.0, max: 15.5, result: 14.2, state: "ok" },
+  { metric: "NDF", min: 18.0, target: 22.0, max: 28.0, result: 21.3, state: "ok" },
+  { metric: "ADF", min: 0, target: 0, max: 16.0, result: 14.5, state: "ok" },
+  { metric: "TDN", min: 72.0, target: 74.0, max: 100, result: 73.4, state: "ok" },
+  { metric: "Ca", min: 0.55, target: 0.65, max: 0.95, result: 0.61, state: "ok" },
+  { metric: "P", min: 0.28, target: 0.34, max: 0.50, result: 0.25, state: "under" },
+  { metric: "Sulfur", min: 0, target: 0, max: 0.40, result: 0.31, state: "ok" },
+];
+
+const compareRows = [
+  { metric: "Biaya / kg", r1: "Rp 4.920", r2: "Rp 5.080", r3: "Rp 4.760", best: "Ransum 3" },
+  { metric: "CP", r1: "14.2%", r2: "13.8%", r3: "13.1%", best: "Ransum 1" },
+  { metric: "NDF", r1: "21.3%", r2: "23.8%", r3: "17.4%", best: "Ransum 1" },
+  { metric: "Constraint Status", r1: "Lolos 7/8", r2: "Lolos 8/8", r3: "Lolos 5/8", best: "Ransum 2" },
+  { metric: "Biaya / head / day", r1: "Rp 43.296", r2: "Rp 44.704", r3: "Rp 41.888", best: "Ransum 3" },
+  { metric: "Mode Keputusan", r1: "Balanced", r2: "Safest", r3: "Low Cost", best: "Tergantung objective" },
+];
+
+const qaRows = [
+  { item: "Mycotoxin Risk", status: "watch", action: "Hold jika melebihi threshold" },
+  { item: "Sulfur Combined Risk", status: "ok", action: "Cek sulfur pakan + sulfur air" },
+  { item: "Mold / Spoilage", status: "watch", action: "Visual screening + verifikasi lab" },
+  { item: "Ingredient Approval", status: "ok", action: "QA sign-off sebelum active" },
+  { item: "Supplier Remark", status: "ok", action: "Log performa supplier per lot" },
+];
+
+const opRows = [
+  { label: "Target Batch", value: "2.500 kg as-fed" },
+  { label: "Head Count", value: "320 head" },
+  { label: "Feed / head / day", value: "11.9 kg as-fed" },
+  { label: "Actual Loaded", value: "2.462 kg" },
+  { label: "Variance", value: "-38 kg" },
+  { label: "Mixer Capacity", value: "2.500 kg" },
+];
+
+const actualRows = [
+  { metric: "Target Feed / head / day", target: "11.9 kg", actual: "11.4 kg", delta: "-0.5 kg", state: "under" },
+  { metric: "Target DMI", target: "8.8 kg", actual: "8.3 kg", delta: "-0.5 kg", state: "under" },
+  { metric: "Target Batch", target: "2.500 kg", actual: "2.462 kg", delta: "-38 kg", state: "under" },
+  { metric: "Formula Status", target: "Locked", actual: "Locked", delta: "0", state: "ok" },
+  { metric: "Safety Hold", target: "0", actual: "1 draft item", delta: "+1", state: "watch" },
+];
+
+const roles = [
+  { role: "Nutritionist", rights: "Create formula, edit constraints, set scenario priority" },
+  { role: "QA / Lab", rights: "Input lab data, approve active profile, hold-release ingredient" },
+  { role: "Feedmill Operator", rights: "Read-only formula, batching execution, actual loaded entry" },
+  { role: "Manager", rights: "Approve final formula, compare economics, read executive dashboard" },
+];
+
+const finalOutputs = [
+  "Formula summary per fase",
+  "Ingredient composition: % • DM • as-fed • cost",
+  "Nutrient compliance panel",
+  "Scenario compare board Ransum 1 / 2 / 3",
+  "Batching & mixing instruction sheet",
+  "Kebutuhan bahan per ton, per batch, per head per day",
+  "Approval history & audit trail",
+  "Management dashboard & actual-vs-target map",
+];
+
+const buildSteps = [
+  ["Tahap 1", "Finalisasi design website & struktur halaman seperti mockup ini"],
+  ["Tahap 2", "Bangun struktur data dan engine hitung dengan rule yang sudah dikunci"],
+  ["Tahap 3", "Hidupkan website dengan data logic yang lebih nyata dan interaktif"],
+  ["Tahap 4", "Tambah actual-vs-target penuh, QA penuh, batching detail, approval workflow lanjutan"],
+];
+
+const launchChecklist = [
+  "Navigasi halaman sudah lengkap dan konsisten",
+  "Hierarki informasi cepat dipindai",
+  "Bahasa UI lebih rapi dan presentable",
+  "Modul inti feedlot sudah terlihat utuh",
+  "Scenario compare siap untuk presentasi konsep",
+  "Siap diturunkan ke struktur data dan engine nyata",
+];
+
+function StatusPill({ status }) {
+  const styles = {
+    ok: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+    under: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+    over: "bg-red-500/15 text-red-700 border-red-500/30",
+    active: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+    draft: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+    archived: "bg-slate-500/15 text-slate-700 border-slate-500/30",
+    watch: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+    fixed: "bg-sky-500/15 text-sky-700 border-sky-500/30",
+  };
+
+  const labels = {
+    ok: "OK",
+    under: "Under",
+    over: "Over",
+    active: "Active",
+    draft: "Draft",
+    archived: "Archived",
+    watch: "Watch",
+    fixed: "Fixed",
+  };
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${styles[status] || styles.ok}`}>
+      {labels[status] || status}
+    </span>
+  );
+}
+
+function StatCard({ title, value, hint, icon: Icon }) {
+  return (
+    <Card className="rounded-2xl border-slate-200/80 shadow-sm">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-slate-500">{title}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
+            <p className="mt-2 text-sm text-slate-600">{hint}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionHeader({ eyebrow, title, description }) {
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{eyebrow}</p>
+      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
+      <p className="mt-2 max-w-5xl text-sm leading-6 text-slate-600">{description}</p>
+    </div>
+  );
+}
+
+function Pill({ children }) {
+  return <Badge variant="secondary" className="rounded-full px-3 py-1">{children}</Badge>;
+}
+
+function MetricRow({ label, value }) {
+  return (
+    <div className="rounded-xl border border-slate-200 px-4 py-3 text-sm">
+      <p className="text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+export default function FeedlotRationSystemLaunchReady() {
+  const [active, setActive] = useState("dashboard");
+  const [scenario, setScenario] = useState("r1");
+  const [query, setQuery] = useState("");
+
+  const filteredPages = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return pages;
+    return pages.filter(
+      (page) =>
+        page.label.toLowerCase().includes(q) ||
+        page.subtitle.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  const activePage = useMemo(() => pages.find((p) => p.key === active), [active]);
+
+  const introText = {
+    dashboard: "Ini adalah tampilan launch-ready demo yang lebih tajam, lebih konsisten, dan lebih enak dibaca seperti software industri sungguhan.",
+    architecture: "Arsitektur final dibuat tegas agar sistem tetap rapi saat nanti tumbuh lebih besar.",
+    database: "Master database diposisikan sebagai fondasi permanen dengan baseline reference, filter fase, dan status kualitas data.",
+    lab: "Semua perubahan hasil lab masuk sebagai lifecycle data yang hidup: reference, draft, active, archived.",
+    requirements: "Requirement engine tampil sebagai gerbang pertama formulasi, bukan fitur tempelan.",
+    phase: "Phase feeding kini lebih operasional karena dilengkapi step-up transition.",
+    dmi: "DMI dan air kini ditampilkan resmi karena keduanya sangat menentukan apakah formula benar-benar bekerja di lapangan.",
+    formula: "Formula Studio menempatkan user sebagai pengendali utama: persentase formula, compliance, biaya, dan status bahan.",
+    compare: "Bandingkan skenario kini diposisikan sebagai alat keputusan utama antara keamanan, efisiensi, dan biaya.",
+    safety: "Safety dan QA kini menjadi lapisan resmi dalam desain final, bukan sekadar catatan tambahan.",
+    operations: "Formula sekarang diterjemahkan sampai ke batching, mixing, dan actual loaded execution.",
+    actual: "Halaman ini menjadi jembatan antara rencana formulasi dan realisasi di lapangan.",
+    governance: "Hak akses, approval, lock, dan audit trail kini jelas terlihat sebagai bagian dari software final.",
+    roadmap: "Halaman penutup merangkum output akhir sistem dan urutan build yang paling rapi setelah design disetujui.",
+  };
+
+  const selectedScenarioLabel = scenario === "r1" ? "Ransum 1" : scenario === "r2" ? "Ransum 2" : "Ransum 3";
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-6 p-4 md:p-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:p-8">
+        <aside className="xl:sticky xl:top-8 xl:h-[calc(100vh-4rem)]">
+          <Card className="h-full rounded-[30px] border-slate-200/80 shadow-sm">
+            <CardContent className="flex h-full flex-col p-5">
+              <div className="rounded-[26px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-5 text-white shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+                    <Scale className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Launch Ready Demo</p>
+                    <h1 className="mt-1 text-xl font-semibold leading-tight">Industrial Cattle Ration Intelligence System</h1>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-200">
+                  Demo final untuk membaca desain sistem secara cepat, profesional, dan siap dipresentasikan sebelum masuk ke pengembangan engine nyata.
+                </p>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Search className="h-4 w-4" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Cari halaman atau modul"
+                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                  />
+                  <div className="rounded-full bg-white px-2 py-1 text-xs">{filteredPages.length}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2 overflow-y-auto pr-1">
+                {filteredPages.map((page) => {
+                  const Icon = page.icon;
+                  const selected = page.key === active;
+                  return (
+                    <button
+                      key={page.key}
+                      onClick={() => setActive(page.key)}
+                      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${selected ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-100"}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 rounded-xl p-2 ${selected ? "bg-white/10" : "bg-slate-100"}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold">{page.label}</p>
+                            <ChevronRight className="h-4 w-4 opacity-70" />
+                          </div>
+                          <p className={`mt-1 text-xs leading-5 ${selected ? "text-slate-300" : "text-slate-500"}`}>{page.subtitle}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-auto pt-5">
+                <Card className="rounded-2xl border-slate-200 bg-slate-50 shadow-none">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold text-slate-900">Checklist launch concept</p>
+                    <div className="mt-3 space-y-2">
+                      {launchChecklist.map((item) => (
+                        <div key={item} className="flex items-start gap-2 text-sm text-slate-600">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+
+        <main>
+          <m.div key={active} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
+            <Card className="overflow-hidden rounded-[30px] border-slate-200/80 shadow-sm">
+              <div className="border-b border-slate-200 bg-white px-6 py-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Software preview</p>
+                    <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{activePage?.label}</h2>
+                    <p className="mt-2 max-w-5xl text-sm leading-6 text-slate-600">{introText[active]}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Pill>Feedlot Industry</Pill>
+                    <Pill>Readable Fast</Pill>
+                    <Pill>Website First</Pill>
+                    <Pill>Launch Ready</Pill>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 rounded-full bg-white px-3 py-2"><Bell className="h-4 w-4 text-amber-600" /> 3 alert aktif</div>
+                  <div className="flex items-center gap-2 rounded-full bg-white px-3 py-2"><Workflow className="h-4 w-4 text-slate-700" /> Approval queue: 2</div>
+                  <div className="flex items-center gap-2 rounded-full bg-white px-3 py-2"><ClipboardCheck className="h-4 w-4 text-emerald-600" /> Active formula: GR-2404-A</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" className="rounded-full"><Filter className="mr-2 h-4 w-4" />Filter</Button>
+                  <Button className="rounded-full bg-slate-900 hover:bg-slate-800"><Sparkles className="mr-2 h-4 w-4" />Launch preview</Button>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-white via-slate-50 to-slate-100 px-6 py-6">
+                {active === "dashboard" && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                      {dashboardStats.map((item) => (
+                        <StatCard key={item.title} title={item.title} value={item.value} hint={item.hint} icon={item.icon} />
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[1.1fr_0.9fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader>
+                          <CardTitle>Yang sekarang sudah tampil penuh</CardTitle>
+                          <CardDescription>Versi ini bukan sekadar overview, tetapi launch-ready demo secara konseptual.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          {[
+                            "Dashboard eksekutif",
+                            "Arsitektur 3 layer",
+                            "Master bahan baku",
+                            "Lab versioning lifecycle",
+                            "Requirement engine",
+                            "DMI & water block",
+                            "Phase & step-up program",
+                            "Formula Studio + compliance",
+                            "Bandingkan Ransum 1 / 2 / 3",
+                            "Safety & QA monitor",
+                            "Operasional & batching",
+                            "Actual vs target",
+                          ].map((item) => (
+                            <div key={item} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <div className="space-y-6">
+                        <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                          <CardHeader>
+                            <CardTitle>Health view desain</CardTitle>
+                            <CardDescription>Ringkasan cepat untuk menilai kesiapan konsep.</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {[
+                              ["Design completeness", 96],
+                              ["Readability speed", 92],
+                              ["Industrial relevance", 95],
+                              ["Presentation readiness", 93],
+                            ].map(([label, value]) => (
+                              <div key={label} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium text-slate-900">{label}</span>
+                                  <span className="text-slate-600">{value}%</span>
+                                </div>
+                                <Progress value={value} className="h-2" />
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+
+                        <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                          <CardHeader>
+                            <CardTitle>Locked final direction</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3 text-sm text-slate-600">
+                            <div className="rounded-xl bg-slate-50 p-3 leading-6">Website ini dipakai untuk membaca desain secara cepat sebelum spreadsheet engine dan aplikasi riil dibuat.</div>
+                            <div className="rounded-xl bg-slate-50 p-3 leading-6">Halaman-halamannya kini lebih bersih, lebih konsisten, dan lebih mudah dipindai seperti software perusahaan besar.</div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {active === "architecture" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="system architecture" title="3 lapisan besar agar sistem tetap rapi saat tumbuh" description="Arsitektur final ini dibuat untuk menahan kompleksitas. Semakin sistem berkembang, semakin penting pemisahan antara formulation core, industrial control, dan intelligence layer." />
+                    <div className="grid grid-cols-1 gap-5 2xl:grid-cols-3">
+                      {architectureCards.map((card, idx) => (
+                        <Card key={card.title} className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                          <CardHeader>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <CardTitle>{card.title}</CardTitle>
+                                <CardDescription className="mt-1">{card.desc}</CardDescription>
+                              </div>
+                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white">{idx + 1}</div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            {card.items.map((item) => (
+                              <div key={item} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                                <span>{item}</span>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle>Workflow utama sistem</CardTitle>
+                        <CardDescription>Alur besar yang harus dibaca user dari awal sampai eksekusi.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        {workflowSteps.map((step, index) => (
+                          <div key={step} className="rounded-2xl border border-slate-200 p-4">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{index + 1}</div>
+                            <p className="mt-3 text-sm leading-6 text-slate-600">{step}</p>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {active === "database" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="master ingredient database" title="Database bahan baku final sebagai fondasi sistem" description="Ingredient database tidak hanya menyimpan nama dan angka. Ia menyimpan fase yang diizinkan, status profile, kualitas sumber data, dan rule dasar yang akan dipakai engine formulasi." />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                      <StatCard title="Seed Database" value="Reference v1" hint="Baseline awal sebelum override lab" icon={Database} />
+                      <StatCard title="Nutrient Basis" value="DM-centric" hint="Nutrisi utama selalu DM / BK" icon={Scale} />
+                      <StatCard title="Editability" value="Dynamic" hint="Bisa diubah, tidak statis" icon={SlidersHorizontal} />
+                      <StatCard title="Phase Filter" value="Enabled" hint="Allowed phase per bahan" icon={Beef} />
+                    </div>
+
+                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle>Master ingredient table</CardTitle>
+                        <CardDescription>Contoh tampilan bahan baku pada halaman final.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                          <div className="grid grid-cols-[1.3fr_1fr_0.7fr_0.7fr_0.7fr_0.7fr_0.9fr_0.8fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            <div>Bahan</div><div>Kategori</div><div>DM</div><div>CP</div><div>NDF</div><div>TDN</div><div>Fase</div><div>Status</div>
+                          </div>
+                          {ingredientRows.map((row) => (
+                            <div key={row.name} className="grid grid-cols-[1.3fr_1fr_0.7fr_0.7fr_0.7fr_0.7fr_0.9fr_0.8fr] gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                              <div className="font-medium text-slate-900">{row.name}</div>
+                              <div>{row.category}</div>
+                              <div>{row.dm}%</div>
+                              <div>{row.cp}%</div>
+                              <div>{row.ndf}%</div>
+                              <div>{row.tdn}%</div>
+                              <div>{row.phase}</div>
+                              <div>{row.state}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle>Standard rules</CardTitle>
+                        <CardDescription>Aturan baku agar data tidak kacau di belakang hari.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {standardRules.map((rule) => (
+                          <div key={rule} className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-600">{rule}</div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {active === "lab" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="lab versioning" title="Semua hasil lab masuk sebagai lifecycle data" description="Hasil lab tidak boleh menghancurkan histori. Desain final menempatkan lab data sebagai modul hidup: sample, review, approval, active, archive." />
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[0.95fr_1.05fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Lifecycle</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {[
+                            ["Reference", "Nilai acuan awal sebelum hasil lab terbaru tersedia"],
+                            ["Draft", "Hasil lab baru masuk tetapi belum disetujui"],
+                            ["Active", "Profile yang sedang dipakai formulasi aktif"],
+                            ["Archived", "Versi lama untuk histori dan audit"],
+                          ].map(([title, desc], idx) => (
+                            <div key={title} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{idx + 1}</div>
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{title}</p>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">{desc}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Recent lab activity</CardTitle><CardDescription>Contoh tampilan timeline hasil lab di website final.</CardDescription></CardHeader>
+                        <CardContent className="space-y-4">
+                          {labRows.map((row) => (
+                            <div key={row.material + row.sample} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{row.material}</p>
+                                  <p className="mt-1 text-xs text-slate-500">Sample {row.sample} • {row.supplier}</p>
+                                </div>
+                                <StatusPill status={row.state} />
+                              </div>
+                              <p className="mt-3 text-sm leading-6 text-slate-600">{row.result}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "requirements" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="animal requirement engine" title="Formulasi dimulai dari kebutuhan ternak" description="Requirement engine tampil sebagai gerbang pertama sebelum formula dihitung. Ini membedakan software industri dari kalkulator bahan biasa." />
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[0.85fr_1.15fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Requirement input panel</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {requirementRows.map((row) => (
+                            <div key={row.label} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm">
+                              <span className="text-slate-600">{row.label}</span>
+                              <span className="font-semibold text-slate-900">{row.value}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Requirement-to-formula logic</CardTitle><CardDescription>Mockup alur keputusan yang benar.</CardDescription></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {[
+                            "Profil ternak membangkitkan target nutrisi dan DMI.",
+                            "Sistem menetapkan roughage floor, constraint fase, dan target energi-protein.",
+                            "Formula Studio membaca constraint aktif secara otomatis.",
+                            "Scenario compare menilai formula bukan hanya dari biaya, tetapi juga kecocokan terhadap requirement ternak.",
+                            "Jika requirement berubah, compliance dan compare ikut diperbarui.",
+                          ].map((item) => (
+                            <div key={item} className="rounded-xl bg-slate-50 p-3 leading-6">{item}</div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "phase" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="phase feeding" title="Starter, Grower, Finisher kini lebih operasional" description="Desain final tidak membiarkan fase hanya menjadi tiga label. Ia juga menampilkan step-up agar transisi ransum terlihat realistis dan siap dipakai di lapangan." />
+                    <div className="grid grid-cols-1 gap-4 2xl:grid-cols-3">
+                      {[
+                        { name: "Starter", focus: "Adaptasi rumen dan kontrol acidosis", note: "Roughage lebih dijaga" },
+                        { name: "Grower", focus: "Pertumbuhan efisien dan keseimbangan energi-protein-serat", note: "Mulai dorong performa" },
+                        { name: "Finisher", focus: "Kepadatan energi tinggi dan efisiensi biaya per gain", note: "Kontrol fiber lebih kritis" },
+                      ].map((item) => (
+                        <Card key={item.name} className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                          <CardHeader>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <CardTitle>{item.name}</CardTitle>
+                                <CardDescription>Phase template</CardDescription>
+                              </div>
+                              <div className="rounded-2xl bg-slate-100 p-3 text-slate-700"><Beef className="h-5 w-5" /></div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3 text-sm text-slate-600">
+                            <div className="rounded-xl bg-slate-50 p-3 leading-6">{item.focus}</div>
+                            <div className="rounded-xl border border-slate-200 p-3">{item.note}</div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                      <CardHeader><CardTitle>Step-up matrix</CardTitle><CardDescription>Transisi ransum dibuat eksplisit di design.</CardDescription></CardHeader>
+                      <CardContent>
+                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                          <div className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_1fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            <div>Step</div><div>Hari</div><div>Roughage</div><div>Concentrate</div><div>Catatan</div>
+                          </div>
+                          {stepRows.map((row) => (
+                            <div key={row.step} className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_1fr] gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                              <div className="font-medium text-slate-900">{row.step}</div>
+                              <div>{row.days}</div>
+                              <div>{row.roughage}</div>
+                              <div>{row.concentrate}</div>
+                              <div>{row.note}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {active === "dmi" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="dmi & water intelligence" title="DMI dan air kini tampil resmi di desain" description="Halaman ini menjadi penghubung antara formula di atas kertas dan realita lapangan. Intake dan air tidak lagi tersembunyi di balik asumsi." />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                      {dmiStats.map((item) => (
+                        <StatCard key={item.title} title={item.title} value={item.value} hint={item.hint} icon={item.icon} />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[1fr_1fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Logika DMI</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {dmiLogic.map((item) => (
+                            <div key={item} className="rounded-xl bg-slate-50 p-3 leading-6">{item}</div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Water risk panel</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {[
+                            "Water need by phase & heat condition",
+                            "Sulfur combined risk = feed + water",
+                            "TDS / salinity watch",
+                            "Heat alert saat suhu tinggi",
+                          ].map((item) => (
+                            <div key={item} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
+                              <Droplets className="h-4 w-4 text-sky-600" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "formula" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="formula studio" title="Ruang utama untuk mengotak-atik formula secara profesional" description="Area ini dibuat seperti software formulasi sungguhan: ada scenario selector, komposisi bahan, min-max inclusion, compliance nutrisi, dan rangkuman biaya." />
+
+                    <div className="flex flex-wrap gap-2">
+                      {["r1", "r2", "r3"].map((key) => (
+                        <Button
+                          key={key}
+                          variant={scenario === key ? "default" : "outline"}
+                          className={`rounded-full ${scenario === key ? "bg-slate-900 hover:bg-slate-800" : ""}`}
+                          onClick={() => setScenario(key)}
+                        >
+                          {key === "r1" ? "Ransum 1" : key === "r2" ? "Ransum 2" : "Ransum 3"}
+                        </Button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[1fr_1fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>{selectedScenarioLabel} — Formula composition</CardTitle><CardDescription>Persentase formula, batas bahan, dan total 100%.</CardDescription></CardHeader>
+                        <CardContent className="space-y-4">
+                          {formulaLines.map((line) => (
+                            <div key={line.ingredient} className="rounded-2xl border border-slate-200 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{line.ingredient}</p>
+                                  <p className="mt-1 text-xs text-slate-500">Min {line.min}% • Max {line.max}%</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-lg font-semibold text-slate-900">{line.pct}%</p>
+                                  <StatusPill status={line.status} />
+                                </div>
+                              </div>
+                              <div className="mt-3"><Progress value={line.pct} className="h-2" /></div>
+                            </div>
+                          ))}
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold text-slate-900">Total formula</p>
+                              <Badge className="rounded-full">100%</Badge>
+                            </div>
+                            <p className="mt-2 text-sm text-slate-600">Versi build berikutnya bisa dibuat interaktif. Pada tahap ini fokusnya memastikan desain dan struktur builder sudah benar.</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>{selectedScenarioLabel} — Nutrient compliance</CardTitle><CardDescription>Min • Target • Max • Result • Status</CardDescription></CardHeader>
+                        <CardContent>
+                          <div className="overflow-hidden rounded-2xl border border-slate-200">
+                            <div className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                              <div>Metric</div><div>Min</div><div>Target</div><div>Max</div><div>Result</div><div>Status</div>
+                            </div>
+                            {complianceRows.map((row) => (
+                              <div key={row.metric} className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                                <div className="font-medium text-slate-900">{row.metric}</div>
+                                <div>{row.min}</div>
+                                <div>{row.target}</div>
+                                <div>{row.max}</div>
+                                <div>{row.result}</div>
+                                <div><StatusPill status={row.state} /></div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "compare" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="scenario compare" title="Bandingkan Ransum 1, 2, dan 3 secara tajam" description="Halaman ini dibuat agar selisih antar formula terbaca hanya dalam beberapa detik. Ini adalah area keputusan utama bagi nutritionist dan manajer." />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {[
+                        ["Ransum 1", "Balanced", "Paling dekat ke target nutrisi"],
+                        ["Ransum 2", "Safest", "Constraint paling lengkap lolos"],
+                        ["Ransum 3", "Low Cost", "Biaya terendah, perlu penguatan compliance"],
+                      ].map(([title, tag, note]) => (
+                        <Card key={title} className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                          <CardContent className="p-5">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-lg font-semibold text-slate-900">{title}</p>
+                                <p className="mt-1 text-sm text-slate-500">{note}</p>
+                              </div>
+                              <Badge className="rounded-full">{tag}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                      <CardHeader><CardTitle>Compare board</CardTitle><CardDescription>Tampilan utama untuk evaluasi antar skenario.</CardDescription></CardHeader>
+                      <CardContent>
+                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                          <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            <div>Metric</div><div>Ransum 1</div><div>Ransum 2</div><div>Ransum 3</div><div>Best</div>
+                          </div>
+                          {compareRows.map((row) => (
+                            <div key={row.metric} className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                              <div className="font-medium text-slate-900">{row.metric}</div>
+                              <div>{row.r1}</div>
+                              <div>{row.r2}</div>
+                              <div>{row.r3}</div>
+                              <div className="font-semibold text-slate-900">{row.best}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {active === "safety" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="safety & qa" title="Feed safety kini menjadi lapisan kontrol resmi" description="Halaman ini menegaskan bahwa sistem final tidak hanya mengejar biaya dan nutrisi. Ia juga menjaga keamanan bahan, approval QA, dan risiko kombinasi feed-water." />
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[0.9fr_1.1fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>QA control points</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {[
+                            "Sampling & lab result intake",
+                            "Draft → review → approve active profile",
+                            "Feed safety warning panel",
+                            "Hold / release ingredient status",
+                            "Supplier quality note per lot",
+                            "Sulfur feed + water review",
+                          ].map((item) => (
+                            <div key={item} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
+                              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Risk monitor</CardTitle><CardDescription>Panel yang seharusnya ada pada software final.</CardDescription></CardHeader>
+                        <CardContent className="space-y-3">
+                          {qaRows.map((row) => (
+                            <div key={row.item} className="rounded-2xl border border-slate-200 p-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-semibold text-slate-900">{row.item}</p>
+                                <StatusPill status={row.status} />
+                              </div>
+                              <p className="mt-2 text-sm leading-6 text-slate-600">{row.action}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "operations" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="operations & execution" title="Formula diturunkan sampai ke kegiatan lapangan" description="Halaman ini memperlihatkan bahwa formula tidak berhenti di meja kerja. Ia turun menjadi batch plan, mixing order, dan actual loaded execution." />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                      <StatCard title="Batch Logic" value="Per ton / batch" hint="Bukan hanya % formula" icon={Factory} />
+                      <StatCard title="Execution Log" value="Actual loaded" hint="Real penimbangan lapangan" icon={ClipboardList} />
+                      <StatCard title="Mixing Flow" value="Ordered" hint="Urutan bahan terlihat" icon={ArrowRightLeft} />
+                      <StatCard title="Variance Watch" value="Enabled" hint="Deviasi target vs actual" icon={Gauge} />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[0.95fr_1.05fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Operational snapshot</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          {opRows.map((row) => (
+                            <MetricRow key={row.label} label={row.label} value={row.value} />
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Execution notes</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {[
+                            "Kebutuhan bahan per 1 ton complete feed",
+                            "Kebutuhan bahan per batch mixer",
+                            "Kebutuhan per head per day",
+                            "Instruksi penimbangan dan urutan mixing",
+                            "Actual loaded vs target loaded",
+                            "Future-ready: carry-over, shrink, actual-fed reconciliation",
+                          ].map((item) => (
+                            <div key={item} className="rounded-xl bg-slate-50 p-3 leading-6">{item}</div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "actual" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="actual vs target" title="Membandingkan rencana dengan realisasi lapangan" description="Halaman ini penting agar sistem tidak berhenti sebagai planner. Di sinilah target formula mulai dibandingkan dengan actual feeding, actual DMI, dan actual batch." />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                      <StatCard title="Target Feeding" value="11.9 kg/head" hint="As-fed per ekor per hari" icon={Scale} />
+                      <StatCard title="Actual Feeding" value="11.4 kg/head" hint="Realisasi rata-rata hari ini" icon={ClipboardList} />
+                      <StatCard title="DMI Delta" value="-0.5 kg" hint="Perlu evaluasi intake" icon={Gauge} />
+                      <StatCard title="Trend" value="Watch" hint="Pantau heat & palatability" icon={LineChart} />
+                    </div>
+
+                    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                      <CardHeader><CardTitle>Actual vs target board</CardTitle><CardDescription>Board ini menutup loop antara rencana dan eksekusi.</CardDescription></CardHeader>
+                      <CardContent>
+                        <div className="overflow-hidden rounded-2xl border border-slate-200">
+                          <div className="grid grid-cols-[1.2fr_0.9fr_0.9fr_0.8fr_0.8fr] gap-3 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            <div>Metric</div><div>Target</div><div>Actual</div><div>Delta</div><div>Status</div>
+                          </div>
+                          {actualRows.map((row) => (
+                            <div key={row.metric} className="grid grid-cols-[1.2fr_0.9fr_0.9fr_0.8fr_0.8fr] gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                              <div className="font-medium text-slate-900">{row.metric}</div>
+                              <div>{row.target}</div>
+                              <div>{row.actual}</div>
+                              <div>{row.delta}</div>
+                              <div><StatusPill status={row.state} /></div></div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {active === "governance" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="governance" title="Hak akses, approval, dan audit trail kini jelas" description="Halaman ini menunjukkan bahwa software final harus tertib. Tidak semua pihak boleh melihat atau mengubah hal yang sama." />
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[0.95fr_1.05fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Role matrix</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {roles.map((row) => (
+                            <div key={row.role} className="rounded-2xl border border-slate-200 p-4">
+                              <p className="text-sm font-semibold text-slate-900">{row.role}</p>
+                              <p className="mt-2 text-sm leading-6 text-slate-600">{row.rights}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Approval & lock flow</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {[
+                            "Formula draft → review → approved → locked",
+                            "Profile lab draft → QA approve → active",
+                            "Operator membaca formula locked saja untuk menghindari salah pakai",
+                            "Histori edit menyimpan siapa, kapan, dan perubahan apa yang terjadi",
+                            "Manajer melihat compare dashboard dan alasan keputusan final",
+                          ].map((item) => (
+                            <div key={item} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
+                              <Users className="h-4 w-4 text-slate-700" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+
+                {active === "roadmap" && (
+                  <div className="space-y-6">
+                    <SectionHeader eyebrow="final outputs & roadmap" title="Output akhir dan urutan pembangunan paling rapi" description="Halaman penutup ini memastikan Anda bisa melihat dengan jelas apa saja hasil akhir yang harus ada di sistem dan langkah pembangunan setelah design disetujui." />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                      <StatCard title="Readability" value="Fast" hint="Lebih cepat dibaca daripada spreadsheet" icon={BarChart3} />
+                      <StatCard title="Output Level" value="Ops + Mgmt" hint="Operasional dan manajerial" icon={FileSpreadsheet} />
+                      <StatCard title="Roadmap" value="4 tahap" hint="Konsep → engine → logic → full scale" icon={LineChart} />
+                      <StatCard title="Purpose" value="Final validation" hint="Memastikan design sudah benar" icon={CheckCircle2} />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[1fr_1fr]">
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Final outputs</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {finalOutputs.map((item) => (
+                            <div key={item} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardHeader><CardTitle>Build sequence</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm text-slate-600">
+                          {buildSteps.map(([title, desc]) => (
+                            <div key={title} className="rounded-xl border border-slate-200 p-3">
+                              <p className="font-semibold text-slate-900">{title}</p>
+                              <p className="mt-1 leading-6">{desc}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                <CardContent className="flex items-start gap-3 p-5">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Launch-ready concept delivered</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Struktur, bahasa, dan ritme tiap halaman kini lebih matang untuk dipresentasikan sebagai konsep final.</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                <CardContent className="flex items-start gap-3 p-5">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Masih demo, belum engine penuh</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Namun dari sisi desain, halaman, alur, dan hierarki informasi kini sudah cukup kuat untuk menjadi acuan launching build berikutnya.</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                <CardContent className="flex items-start gap-3 p-5">
+                  <Target className="mt-0.5 h-5 w-5 text-slate-700" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Next step paling tepat</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Turunkan desain ini ke struktur database final dan engine hitung nyata agar software mulai hidup secara fungsional.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </m.div>
+        </main>
+      </div>
+    </div>
+  );
+}
