@@ -202,8 +202,8 @@ export default function AppV4() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (view === 'quick') return <AppV3 initialMode="quick" />;
-  if (view === 'professional') return <AppV3 initialMode="professional" />;
+  if (view === 'quick') return <AppV3 initialMode="quick" onExit={() => go('home')} />;
+  if (view === 'professional') return <AppV3 initialMode="professional" onExit={() => go('home')} />;
   if (view === 'guided') return <Guided state={guidedState} setState={setGuidedState} tab={guidedTab} setTab={setGuidedTab} onHome={() => go('home')} onProfessional={() => go('professional')} />;
   if (view === 'lots') return <Lots savedLots={savedLots} setSavedLots={setSavedLots} currentState={guidedState} setCurrentState={setGuidedState} onHome={() => go('home')} onGuided={() => go('guided', 'overview')} />;
 
