@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import AppV4 from './AppV4.jsx';
+import SimpleCalculator from './SimpleCalculator.jsx';
 import './styles.css';
-import './osStyles.css';
+import './simpleStyles.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppV4 />
+    <SimpleCalculator />
   </React.StrictMode>,
 );
