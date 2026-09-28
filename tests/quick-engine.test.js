@@ -48,3 +48,31 @@ test('quick carcass required carcass price lands on target profit', () => {
   const solved = calculateQuickCarcass({ ...quickCarcassDefaults, carcassPrice: base.requiredCarcassPriceTarget });
   assert.ok(Math.abs(solved.profit - quickCarcassDefaults.targetProfitPerHead) < 0.01);
 });
+
+test('quick carcass flags target above 100 percent as impossible', () => {
+  const r = calculateQuickCarcass({
+    liveWeight: 400,
+    livePrice: 80000,
+    dressingPct: 55,
+    carcassPrice: 90000,
+    additionalCostPerHead: 1000000,
+    byproductRevenuePerHead: 0,
+    targetProfitPerHead: 5000000,
+  });
+  assert.ok(r.requiredDressingTargetPct > 100);
+  assert.equal(r.targetDressingFeasible, false);
+});
+
+test('quick carcass with zero carcass price does not fake a zero-percent target', () => {
+  const r = calculateQuickCarcass({
+    liveWeight: 480,
+    livePrice: 60000,
+    dressingPct: 55,
+    carcassPrice: 0,
+    additionalCostPerHead: 1000000,
+    byproductRevenuePerHead: 0,
+    targetProfitPerHead: 1500000,
+  });
+  assert.equal(r.requiredDressingTargetPct, Number.POSITIVE_INFINITY);
+  assert.equal(r.targetDressingFeasible, false);
+});
