@@ -5,6 +5,10 @@ const clamp = (value, min = 0, max = Number.POSITIVE_INFINITY) => {
 };
 
 const safeDiv = (a, b) => (Number.isFinite(a) && Number.isFinite(b) && b !== 0 ? a / b : 0);
+const requiredDiv = (numerator, denominator) => {
+  if (numerator <= 0) return 0;
+  return denominator > 0 ? numerator / denominator : Number.POSITIVE_INFINITY;
+};
 
 export const quickLiveDefaults = Object.freeze({
   heads: 1,
@@ -101,20 +105,16 @@ export function calculateQuickCarcass(raw = {}) {
   const marginPct = safeDiv(profit, totalRevenue) * 100;
   const returnOnCostPct = safeDiv(profit, totalCost) * 100;
 
-  const requiredCarcassWeightBreakEven = x.carcassPrice > 0
-    ? Math.max(0, (totalCost - x.byproductRevenuePerHead) / x.carcassPrice)
-    : 0;
-  const requiredCarcassWeightTarget = x.carcassPrice > 0
-    ? Math.max(0, (totalCost + x.targetProfitPerHead - x.byproductRevenuePerHead) / x.carcassPrice)
-    : 0;
-  const requiredDressingBreakEvenPct = x.liveWeight > 0 ? safeDiv(requiredCarcassWeightBreakEven, x.liveWeight) * 100 : 0;
-  const requiredDressingTargetPct = x.liveWeight > 0 ? safeDiv(requiredCarcassWeightTarget, x.liveWeight) * 100 : 0;
-  const requiredCarcassPriceBreakEven = carcassWeight > 0
-    ? Math.max(0, (totalCost - x.byproductRevenuePerHead) / carcassWeight)
-    : 0;
-  const requiredCarcassPriceTarget = carcassWeight > 0
-    ? Math.max(0, (totalCost + x.targetProfitPerHead - x.byproductRevenuePerHead) / carcassWeight)
-    : 0;
+  const breakEvenRevenueNeededFromCarcass = Math.max(0, totalCost - x.byproductRevenuePerHead);
+  const targetRevenueNeededFromCarcass = Math.max(0, totalCost + x.targetProfitPerHead - x.byproductRevenuePerHead);
+  const requiredCarcassWeightBreakEven = requiredDiv(breakEvenRevenueNeededFromCarcass, x.carcassPrice);
+  const requiredCarcassWeightTarget = requiredDiv(targetRevenueNeededFromCarcass, x.carcassPrice);
+  const requiredDressingBreakEvenPct = requiredDiv(requiredCarcassWeightBreakEven, x.liveWeight) * 100;
+  const requiredDressingTargetPct = requiredDiv(requiredCarcassWeightTarget, x.liveWeight) * 100;
+  const requiredCarcassPriceBreakEven = requiredDiv(breakEvenRevenueNeededFromCarcass, carcassWeight);
+  const requiredCarcassPriceTarget = requiredDiv(targetRevenueNeededFromCarcass, carcassWeight);
+  const breakEvenDressingFeasible = Number.isFinite(requiredDressingBreakEvenPct) && requiredDressingBreakEvenPct <= 100;
+  const targetDressingFeasible = Number.isFinite(requiredDressingTargetPct) && requiredDressingTargetPct <= 100;
   const maxPurchaseCostTarget = Math.max(0, totalRevenue - x.additionalCostPerHead - x.targetProfitPerHead);
   const maxLivePriceTarget = x.liveWeight > 0 ? maxPurchaseCostTarget / x.liveWeight : 0;
   const requiredByproductTarget = Math.max(0, totalCost + x.targetProfitPerHead - carcassRevenue);
@@ -135,6 +135,8 @@ export function calculateQuickCarcass(raw = {}) {
     requiredDressingTargetPct,
     requiredCarcassPriceBreakEven,
     requiredCarcassPriceTarget,
+    breakEvenDressingFeasible,
+    targetDressingFeasible,
     maxPurchaseCostTarget,
     maxLivePriceTarget,
     requiredByproductTarget,
