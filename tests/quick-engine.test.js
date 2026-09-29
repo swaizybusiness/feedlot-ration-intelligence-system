@@ -107,3 +107,27 @@ test('quick feedlot required ADG lands on target profit', () => {
   const solved = calculateQuickFeedlot({ ...quickFeedlotDefaults, adg: base.requiredAdgTarget });
   assert.ok(Math.abs(solved.profit - quickFeedlotDefaults.targetProfitPerHead) < 0.01);
 });
+
+test('quick feedlot zero gain with feed consumed is not reported as zero efficiency', () => {
+  const r = calculateQuickFeedlot({
+    ...quickFeedlotDefaults,
+    adg: 0,
+  });
+  assert.equal(r.liveGain, 0);
+  assert.equal(r.feedPerKgGain, Number.POSITIVE_INFINITY);
+  assert.equal(r.feedCostPerKgGain, Number.POSITIVE_INFINITY);
+});
+
+test('quick feedlot required break-even ADG lands on zero profit', () => {
+  const base = calculateQuickFeedlot(quickFeedlotDefaults);
+  const solved = calculateQuickFeedlot({ ...quickFeedlotDefaults, adg: base.requiredAdgBreakEven });
+  assert.ok(Math.abs(solved.profit) < 0.01);
+});
+
+test('quick feedlot exposes economic status and ADG gaps consistently', () => {
+  const r = calculateQuickFeedlot(quickFeedlotDefaults);
+  const expectedStatus = r.profit < 0 ? 'loss' : r.profit >= r.x.targetProfitPerHead ? 'target' : 'profit';
+  assert.equal(r.economicStatus, expectedStatus);
+  assert.ok(Math.abs(r.adgGapToBreakEven - (r.x.adg - r.requiredAdgBreakEven)) < 1e-12);
+  assert.ok(Math.abs(r.adgGapToTarget - (r.x.adg - r.requiredAdgTarget)) < 1e-12);
+});
