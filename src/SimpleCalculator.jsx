@@ -3,8 +3,10 @@ import AppV3 from './AppV3.jsx';
 import {
   calculateQuickLive,
   calculateQuickCarcass,
+  calculateQuickFeedlot,
   quickLiveDefaults,
   quickCarcassDefaults,
+  quickFeedlotDefaults,
 } from './lib/quickEngine.js';
 import { buildDressingScenarioSteps } from './lib/scenario.js';
 
@@ -224,6 +226,51 @@ function TargetCalculator({ state, setState }) {
   </div>;
 }
 
+
+function FeedlotCalculator({ state, setState }) {
+  const r = useMemo(() => calculateQuickFeedlot(state), [state]);
+  return <div className="simple-workspace">
+    <section className="simple-panel">
+      <h3>Hitung kasar sebagai feedlot</h3>
+      <p className="simple-help">Asumsi sederhana: sapi dibeli, dipelihara, bobot naik sesuai ADG, pakan dibayar setiap hari, lalu sapi dijual hidup.</p>
+      <div className="simple-fields">
+        <Field label="Bobot beli" suffix="kg" step={1} value={state.purchaseWeight} onChange={(v) => setState(s => ({ ...s, purchaseWeight: v }))} />
+        <Field label="Harga beli" suffix="Rp/kg" step={500} value={state.purchasePrice} onChange={(v) => setState(s => ({ ...s, purchasePrice: v }))} />
+        <Field label="Lama dipelihara" suffix="hari" step={1} value={state.daysOnFeed} onChange={(v) => setState(s => ({ ...s, daysOnFeed: v }))} />
+        <Field label="ADG / kenaikan bobot" suffix="kg/hari" step={0.01} value={state.adg} onChange={(v) => setState(s => ({ ...s, adg: v }))} />
+        <Field label="Konsumsi pakan" suffix="kg/ekor/hari" step={0.1} value={state.feedIntakePerDay} onChange={(v) => setState(s => ({ ...s, feedIntakePerDay: v }))} />
+        <Field label="Harga pakan" suffix="Rp/kg" step={100} value={state.feedPrice} onChange={(v) => setState(s => ({ ...s, feedPrice: v }))} />
+        <Field label="Biaya lain" suffix="Rp/ekor" step={100000} value={state.otherCostPerHead} onChange={(v) => setState(s => ({ ...s, otherCostPerHead: v }))} />
+        <Field label="Harga jual hidup" suffix="Rp/kg" step={500} value={state.salePrice} onChange={(v) => setState(s => ({ ...s, salePrice: v }))} />
+        <Field label="Target keuntungan" suffix="Rp/ekor" step={100000} value={state.targetProfitPerHead} onChange={(v) => setState(s => ({ ...s, targetProfitPerHead: v }))} />
+        <Field label="Jumlah sapi" suffix="ekor" step={1} value={state.heads} onChange={(v) => setState(s => ({ ...s, heads: v }))} />
+      </div>
+    </section>
+    <section className="simple-panel result-panel">
+      <div className={`simple-hero-result ${r.profit < 0 ? 'danger' : 'good'}`}>
+        <span>ESTIMASI UNTUNG / RUGI FEEDLOT</span>
+        <strong>{money(r.profit)} / ekor</strong>
+        <b>{r.profit < 0 ? 'RUGI PADA ASUMSI INI' : r.profit >= r.x.targetProfitPerHead ? 'TARGET TERCAPAI' : 'UNTUNG, BELUM MENCAPAI TARGET'}</b>
+      </div>
+      <div className="simple-result-grid">
+        <ResultCard label="Bobot akhir proyeksi" value={kg(r.finalWeight)} note={`${num(r.x.purchaseWeight,1)} + (${num(r.x.adg,2)} × ${num(r.x.daysOnFeed,0)} hari)`} />
+        <ResultCard label="Total kenaikan bobot" value={kg(r.liveGain)} />
+        <ResultCard label="Total pakan / ekor" value={kg(r.totalFeedKg)} note={`${num(r.x.feedIntakePerDay,1)} kg × ${num(r.x.daysOnFeed,0)} hari`} />
+        <ResultCard label="Biaya pakan / ekor" value={money(r.feedCost)} />
+        <ResultCard label="Total modal / ekor" value={money(r.totalCost)} />
+        <ResultCard label="Nilai jual / ekor" value={money(r.saleRevenue)} />
+        <ResultCard label="Harga jual break-even" value={`${money(r.breakEvenSalePrice)}/kg`} />
+        <ResultCard label="ADG minimum untuk target" value={`${num(r.requiredAdgTarget,2)} kg/hari`} />
+        <ResultCard label="Pakan per kg kenaikan bobot" value={`${num(r.feedPerKgGain,2)} kg pakan/kg gain`} />
+        <ResultCard label="Untung seluruh lot" value={money(r.lotProfit)} tone={r.lotProfit < 0 ? 'danger' : 'good'} />
+      </div>
+      <Formula><b>Bobot akhir:</b> {num(r.x.purchaseWeight,1)} kg + ({num(r.x.adg,2)} × {num(r.x.daysOnFeed,0)} hari) = <strong>{kg(r.finalWeight)}</strong></Formula>
+      <Formula><b>Profit:</b> {money(r.saleRevenue)} − {money(r.purchaseCost)} − {money(r.feedCost)} − {money(r.x.otherCostPerHead)} = <strong>{money(r.profit)}</strong></Formula>
+      <p className="simple-footnote">Mode Feedlot Kasar belum memasukkan mortality, shrink, dry matter, finance, tenaga kerja terpisah, atau perubahan konsumsi seiring bobot. Masukkan biaya tersebut ke “Biaya lain” atau gunakan Perhitungan Profesional.</p>
+    </section>
+  </div>;
+}
+
 export default function SimpleCalculator() {
   const [task, setTask] = useState('profit');
   const [professional, setProfessional] = useState(false);
@@ -233,6 +280,7 @@ export default function SimpleCalculator() {
   const [carcassState, setCarcassState] = useState({ ...quickCarcassDefaults });
   const [buyState, setBuyState] = useState({ ...quickCarcassDefaults });
   const [targetState, setTargetState] = useState({ ...quickCarcassDefaults });
+  const [feedlotState, setFeedlotState] = useState({ ...quickFeedlotDefaults });
 
   if (professional) return <AppV3 initialMode="professional" onExit={() => setProfessional(false)} />;
 
@@ -241,6 +289,7 @@ export default function SimpleCalculator() {
     ['carcass', '🔪', 'Karkas', 'Saya mau hitung kg karkas dan skenarionya.'],
     ['buy', '🐂', 'Harga Beli Maksimal', 'Saya mau tahu batas harga beli sapi.'],
     ['target', '🎯', 'Target Minimal', 'Saya mau tahu minimal karkas harus berapa.'],
+    ['feedlot', '🌾', 'Feedlot', 'Saya mau hitung kasar usaha penggemukan.'],
   ];
 
   const resetAll = () => {
@@ -249,6 +298,7 @@ export default function SimpleCalculator() {
     setCarcassState({ ...quickCarcassDefaults });
     setBuyState({ ...quickCarcassDefaults });
     setTargetState({ ...quickCarcassDefaults });
+    setFeedlotState({ ...quickFeedlotDefaults });
   };
 
   return <main className="simple-shell">
@@ -271,6 +321,7 @@ export default function SimpleCalculator() {
     {task === 'carcass' && <CarcassCalculator state={carcassState} setState={setCarcassState} />}
     {task === 'buy' && <BuyCalculator state={buyState} setState={setBuyState} />}
     {task === 'target' && <TargetCalculator state={targetState} setState={setTargetState} />}
+    {task === 'feedlot' && <FeedlotCalculator state={feedlotState} setState={setFeedlotState} />}
 
     <footer className="simple-footer">
       <span>Setiap kalkulator berdiri sendiri. Angka dari menu lain tidak memengaruhi hasil menu ini.</span>
