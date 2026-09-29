@@ -229,10 +229,51 @@ function TargetCalculator({ state, setState }) {
 
 function FeedlotCalculator({ state, setState }) {
   const r = useMemo(() => calculateQuickFeedlot(state), [state]);
+  const heroTone = r.economicStatus === 'loss' ? 'danger' : r.economicStatus === 'target' ? 'good' : 'warning';
+  const heroLabel = r.economicStatus === 'loss'
+    ? 'RUGI PADA ASUMSI INI'
+    : r.economicStatus === 'target'
+      ? 'TARGET PROFIT TERCAPAI'
+      : 'SUDAH UNTUNG, TARGET BELUM TERCAPAI';
+
+  const adgMessage = !Number.isFinite(r.requiredAdgBreakEven) || !Number.isFinite(r.requiredAdgTarget)
+    ? { tone: 'danger', title: 'Batas ADG belum dapat dihitung', detail: 'Pastikan hari pemeliharaan dan harga jual hidup lebih dari 0.' }
+    : r.x.adg < r.requiredAdgBreakEven
+      ? {
+          tone: 'danger',
+          title: 'ADG sekarang masih di bawah titik impas',
+          detail: `Masih kurang ${num(r.requiredAdgBreakEven - r.x.adg, 2)} kg/hari untuk mencapai break-even pada asumsi ini.`,
+        }
+      : r.x.adg < r.requiredAdgTarget
+        ? {
+            tone: 'warning',
+            title: 'Sudah melewati break-even, tetapi belum mencapai target profit',
+            detail: `Masih kurang ${num(r.requiredAdgTarget - r.x.adg, 2)} kg/hari untuk mencapai target profit.`,
+          }
+        : {
+            tone: 'good',
+            title: 'ADG saat ini sudah memenuhi target profit model',
+            detail: `Ada ruang ${num(r.x.adg - r.requiredAdgTarget, 2)} kg/hari di atas ADG minimum target.`,
+          };
+
+  const feedPerGain = Number.isFinite(r.feedPerKgGain)
+    ? `${num(r.feedPerKgGain, 2)} kg pakan/kg gain`
+    : 'Tidak dapat dihitung';
+  const feedCostPerGain = Number.isFinite(r.feedCostPerKgGain)
+    ? `${money(r.feedCostPerKgGain)}/kg gain`
+    : 'Tidak dapat dihitung';
+  const adgBreakEven = Number.isFinite(r.requiredAdgBreakEven)
+    ? `${num(r.requiredAdgBreakEven, 2)} kg/hari`
+    : 'Tidak dapat dihitung';
+  const adgTarget = Number.isFinite(r.requiredAdgTarget)
+    ? `${num(r.requiredAdgTarget, 2)} kg/hari`
+    : 'Tidak dapat dihitung';
+
   return <div className="simple-workspace">
     <section className="simple-panel">
       <h3>Hitung kasar sebagai feedlot</h3>
       <p className="simple-help">Asumsi sederhana: sapi dibeli, dipelihara, bobot naik sesuai ADG, pakan dibayar setiap hari, lalu sapi dijual hidup.</p>
+      <div className="simple-example-note">💡 Angka yang tampil saat pertama kali dibuka hanyalah <b>contoh awal</b>. Ganti sesuai kondisi sapi, harga, dan pakan Anda.</div>
       <div className="simple-fields">
         <Field label="Bobot beli" suffix="kg" step={1} value={state.purchaseWeight} onChange={(v) => setState(s => ({ ...s, purchaseWeight: v }))} />
         <Field label="Harga beli" suffix="Rp/kg" step={500} value={state.purchasePrice} onChange={(v) => setState(s => ({ ...s, purchasePrice: v }))} />
@@ -246,27 +287,53 @@ function FeedlotCalculator({ state, setState }) {
         <Field label="Jumlah sapi" suffix="ekor" step={1} value={state.heads} onChange={(v) => setState(s => ({ ...s, heads: v }))} />
       </div>
     </section>
+
     <section className="simple-panel result-panel">
-      <div className={`simple-hero-result ${r.profit < 0 ? 'danger' : 'good'}`}>
+      <div className={`simple-hero-result ${heroTone}`}>
         <span>ESTIMASI UNTUNG / RUGI FEEDLOT</span>
         <strong>{money(r.profit)} / ekor</strong>
-        <b>{r.profit < 0 ? 'RUGI PADA ASUMSI INI' : r.profit >= r.x.targetProfitPerHead ? 'TARGET TERCAPAI' : 'UNTUNG, BELUM MENCAPAI TARGET'}</b>
+        <b>{heroLabel}</b>
       </div>
+
+      <h4>Performa sapi</h4>
       <div className="simple-result-grid">
+        <ResultCard label="ADG yang Anda masukkan" value={`${num(r.x.adg,2)} kg/hari`} />
         <ResultCard label="Bobot akhir proyeksi" value={kg(r.finalWeight)} note={`${num(r.x.purchaseWeight,1)} + (${num(r.x.adg,2)} × ${num(r.x.daysOnFeed,0)} hari)`} />
         <ResultCard label="Total kenaikan bobot" value={kg(r.liveGain)} />
         <ResultCard label="Total pakan / ekor" value={kg(r.totalFeedKg)} note={`${num(r.x.feedIntakePerDay,1)} kg × ${num(r.x.daysOnFeed,0)} hari`} />
-        <ResultCard label="Biaya pakan / ekor" value={money(r.feedCost)} />
-        <ResultCard label="Total modal / ekor" value={money(r.totalCost)} />
-        <ResultCard label="Nilai jual / ekor" value={money(r.saleRevenue)} />
-        <ResultCard label="Harga jual break-even" value={`${money(r.breakEvenSalePrice)}/kg`} />
-        <ResultCard label="ADG minimum untuk target" value={`${num(r.requiredAdgTarget,2)} kg/hari`} />
-        <ResultCard label="Pakan per kg kenaikan bobot" value={`${num(r.feedPerKgGain,2)} kg pakan/kg gain`} />
-        <ResultCard label="Untung seluruh lot" value={money(r.lotProfit)} tone={r.lotProfit < 0 ? 'danger' : 'good'} />
       </div>
+
+      <h4>Ekonomi pakan</h4>
+      <div className="simple-result-grid">
+        <ResultCard label="Biaya pakan / ekor" value={money(r.feedCost)} />
+        <ResultCard label="Pakan untuk naik 1 kg" value={feedPerGain} />
+        <ResultCard label="Biaya pakan untuk naik 1 kg" value={feedCostPerGain} />
+        <ResultCard label="Total modal / ekor" value={money(r.totalCost)} />
+      </div>
+
+      <h4>Batas aman ekonomi</h4>
+      <div className={`simple-feedlot-status ${adgMessage.tone}`}>
+        <strong>{adgMessage.title}</strong>
+        <p>{adgMessage.detail}</p>
+      </div>
+      <div className="simple-result-grid">
+        <ResultCard label="ADG minimum tidak rugi" value={adgBreakEven} tone={r.x.adg < r.requiredAdgBreakEven ? 'danger' : 'good'} />
+        <ResultCard label="ADG minimum untuk target" value={adgTarget} tone={r.x.adg >= r.requiredAdgTarget ? 'good' : ''} />
+        <ResultCard label="Harga jual break-even" value={`${money(r.breakEvenSalePrice)}/kg`} />
+        <ResultCard label="Harga jual untuk target" value={`${money(r.targetSalePrice)}/kg`} />
+      </div>
+
+      <h4>Hasil seluruh lot</h4>
+      <div className="simple-result-grid">
+        <ResultCard label="Total modal lot" value={money(r.lotTotalCost)} />
+        <ResultCard label="Total nilai jual lot" value={money(r.lotRevenue)} />
+        <ResultCard label="Total biaya pakan lot" value={money(r.lotFeedCost)} />
+        <ResultCard label="Untung / rugi seluruh lot" value={money(r.lotProfit)} tone={r.lotProfit < 0 ? 'danger' : 'good'} />
+      </div>
+
       <Formula><b>Bobot akhir:</b> {num(r.x.purchaseWeight,1)} kg + ({num(r.x.adg,2)} × {num(r.x.daysOnFeed,0)} hari) = <strong>{kg(r.finalWeight)}</strong></Formula>
       <Formula><b>Profit:</b> {money(r.saleRevenue)} − {money(r.purchaseCost)} − {money(r.feedCost)} − {money(r.x.otherCostPerHead)} = <strong>{money(r.profit)}</strong></Formula>
-      <p className="simple-footnote">Mode Feedlot Kasar belum memasukkan mortality, shrink, dry matter, finance, tenaga kerja terpisah, atau perubahan konsumsi seiring bobot. Masukkan biaya tersebut ke “Biaya lain” atau gunakan Perhitungan Profesional.</p>
+      <p className="simple-footnote">Mode Feedlot Kasar belum memasukkan mortality, shrink, dry matter, finance, tenaga kerja terpisah, atau perubahan konsumsi seiring bobot. “ADG minimum” di sini adalah batas ekonomi dari angka yang Anda masukkan, bukan klaim bahwa ADG tersebut pasti bisa dicapai secara biologis. Masukkan biaya lain yang belum dihitung ke “Biaya lain” atau gunakan Perhitungan Profesional.</p>
     </section>
   </div>;
 }
@@ -307,6 +374,7 @@ export default function SimpleCalculator() {
         <span className="simple-kicker">KALKULATOR EKONOMI SAPI</span>
         <h1>Hitung kasar. Cepat. Bisa dicek sendiri.</h1>
         <p>Masukkan angka yang Anda tahu. Tidak ada shrink, trim, finance, atau asumsi teknis tersembunyi di mode ini.</p>
+        <p className="simple-header-note">Angka default hanyalah contoh awal — selalu ganti dengan kondisi Anda sendiri.</p>
       </div>
       <button className="simple-pro-link" onClick={() => setProfessional(true)}>Perhitungan Profesional →</button>
     </header>
