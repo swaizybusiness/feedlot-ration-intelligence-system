@@ -229,6 +229,11 @@ function TargetCalculator({ state, setState }) {
 
 function FeedlotCalculator({ state, setState }) {
   const r = useMemo(() => calculateQuickFeedlot(state), [state]);
+
+  const adgDown = useMemo(() => calculateQuickFeedlot({ ...state, adg: Math.max(0, state.adg - 0.10) }), [state]);
+  const feedUp = useMemo(() => calculateQuickFeedlot({ ...state, feedPrice: state.feedPrice + 500 }), [state]);
+  const saleDown = useMemo(() => calculateQuickFeedlot({ ...state, salePrice: Math.max(0, state.salePrice - 1000) }), [state]);
+
   const heroTone = r.economicStatus === 'loss' ? 'danger' : r.economicStatus === 'target' ? 'good' : 'warning';
   const heroLabel = r.economicStatus === 'loss'
     ? 'RUGI PADA ASUMSI INI'
@@ -236,104 +241,142 @@ function FeedlotCalculator({ state, setState }) {
       ? 'TARGET PROFIT TERCAPAI'
       : 'SUDAH UNTUNG, TARGET BELUM TERCAPAI';
 
-  const adgMessage = !Number.isFinite(r.requiredAdgBreakEven) || !Number.isFinite(r.requiredAdgTarget)
-    ? { tone: 'danger', title: 'Batas ADG belum dapat dihitung', detail: 'Pastikan hari pemeliharaan dan harga jual hidup lebih dari 0.' }
-    : r.x.adg < r.requiredAdgBreakEven
-      ? {
-          tone: 'danger',
-          title: 'ADG sekarang masih di bawah titik impas',
-          detail: `Masih kurang ${num(r.requiredAdgBreakEven - r.x.adg, 2)} kg/hari untuk mencapai break-even pada asumsi ini.`,
-        }
-      : r.x.adg < r.requiredAdgTarget
-        ? {
-            tone: 'warning',
-            title: 'Sudah melewati break-even, tetapi belum mencapai target profit',
-            detail: `Masih kurang ${num(r.requiredAdgTarget - r.x.adg, 2)} kg/hari untuk mencapai target profit.`,
-          }
-        : {
-            tone: 'good',
-            title: 'ADG saat ini sudah memenuhi target profit model',
-            detail: `Ada ruang ${num(r.x.adg - r.requiredAdgTarget, 2)} kg/hari di atas ADG minimum target.`,
-          };
+  const dailyTone = r.dailyEconomicStatus === 'negative' ? 'danger' : 'good';
+  const dailyTitle = r.dailyEconomicStatus === 'negative'
+    ? 'Tambahan hari feeding sedang menggerus nilai'
+    : 'Tambahan hari feeding masih menciptakan nilai';
+  const dailyDetail = r.dailyEconomicStatus === 'negative'
+    ? `Nilai pertumbuhan ${money(r.dailyValueGain)}/hari lebih kecil daripada biaya holding ${money(r.dailyHoldingCost)}/hari.`
+    : `Nilai pertumbuhan ${money(r.dailyValueGain)}/hari lebih besar daripada biaya holding ${money(r.dailyHoldingCost)}/hari.`;
 
-  const feedPerGain = Number.isFinite(r.feedPerKgGain)
-    ? `${num(r.feedPerKgGain, 2)} kg pakan/kg gain`
-    : 'Tidak dapat dihitung';
-  const feedCostPerGain = Number.isFinite(r.feedCostPerKgGain)
-    ? `${money(r.feedCostPerKgGain)}/kg gain`
-    : 'Tidak dapat dihitung';
-  const adgBreakEven = Number.isFinite(r.requiredAdgBreakEven)
-    ? `${num(r.requiredAdgBreakEven, 2)} kg/hari`
-    : 'Tidak dapat dihitung';
-  const adgTarget = Number.isFinite(r.requiredAdgTarget)
-    ? `${num(r.requiredAdgTarget, 2)} kg/hari`
-    : 'Tidak dapat dihitung';
+  const formatRatio = (value, suffix) => Number.isFinite(value) ? `${num(value,2)} ${suffix}` : 'Tidak dapat dihitung';
+  const formatMoneyRatio = (value, suffix) => Number.isFinite(value) ? `${money(value)}${suffix}` : 'Tidak dapat dihitung';
 
-  return <div className="simple-workspace">
+  return <div className="simple-workspace feedlot-workspace">
     <section className="simple-panel">
       <h3>Hitung kasar sebagai feedlot</h3>
-      <p className="simple-help">Asumsi sederhana: sapi dibeli, dipelihara, bobot naik sesuai ADG, pakan dibayar setiap hari, lalu sapi dijual hidup.</p>
-      <div className="simple-example-note">💡 Angka yang tampil saat pertama kali dibuka hanyalah <b>contoh awal</b>. Ganti sesuai kondisi sapi, harga, dan pakan Anda.</div>
-      <div className="simple-fields">
-        <Field label="Bobot beli" suffix="kg" step={1} value={state.purchaseWeight} onChange={(v) => setState(s => ({ ...s, purchaseWeight: v }))} />
-        <Field label="Harga beli" suffix="Rp/kg" step={500} value={state.purchasePrice} onChange={(v) => setState(s => ({ ...s, purchasePrice: v }))} />
-        <Field label="Lama dipelihara" suffix="hari" step={1} value={state.daysOnFeed} onChange={(v) => setState(s => ({ ...s, daysOnFeed: v }))} />
-        <Field label="ADG / kenaikan bobot" suffix="kg/hari" step={0.01} value={state.adg} onChange={(v) => setState(s => ({ ...s, adg: v }))} />
-        <Field label="Konsumsi pakan" suffix="kg/ekor/hari" step={0.1} value={state.feedIntakePerDay} onChange={(v) => setState(s => ({ ...s, feedIntakePerDay: v }))} />
-        <Field label="Harga pakan" suffix="Rp/kg" step={100} value={state.feedPrice} onChange={(v) => setState(s => ({ ...s, feedPrice: v }))} />
-        <Field label="Biaya lain" suffix="Rp/ekor" step={100000} value={state.otherCostPerHead} onChange={(v) => setState(s => ({ ...s, otherCostPerHead: v }))} />
-        <Field label="Harga jual hidup" suffix="Rp/kg" step={500} value={state.salePrice} onChange={(v) => setState(s => ({ ...s, salePrice: v }))} />
-        <Field label="Target keuntungan" suffix="Rp/ekor" step={100000} value={state.targetProfitPerHead} onChange={(v) => setState(s => ({ ...s, targetProfitPerHead: v }))} />
-        <Field label="Jumlah sapi" suffix="ekor" step={1} value={state.heads} onChange={(v) => setState(s => ({ ...s, heads: v }))} />
+      <p className="simple-help">Beli sapi → feeding → biaya harian → naik bobot → jual hidup. Semua asumsi yang dipakai terlihat di layar.</p>
+      <div className="simple-example-note">💡 Angka saat pertama dibuka hanyalah <b>contoh awal</b>. Ganti sesuai kondisi feedlot Anda.</div>
+
+      <div className="feedlot-input-group">
+        <h4>🐂 Sapi masuk</h4>
+        <div className="simple-fields">
+          <Field label="Bobot beli" suffix="kg" step={1} value={state.purchaseWeight} onChange={(v) => setState(s => ({ ...s, purchaseWeight: v }))} />
+          <Field label="Harga beli" suffix="Rp/kg" step={500} value={state.purchasePrice} onChange={(v) => setState(s => ({ ...s, purchasePrice: v }))} />
+        </div>
+      </div>
+
+      <div className="feedlot-input-group">
+        <h4>🌾 Feeding</h4>
+        <div className="simple-fields">
+          <Field label="Lama dipelihara" suffix="hari" step={1} value={state.daysOnFeed} onChange={(v) => setState(s => ({ ...s, daysOnFeed: v }))} />
+          <Field label="ADG / kenaikan bobot" suffix="kg/hari" step={0.01} value={state.adg} onChange={(v) => setState(s => ({ ...s, adg: v }))} />
+          <Field label="Konsumsi pakan" suffix="kg/ekor/hari" step={0.1} value={state.feedIntakePerDay} onChange={(v) => setState(s => ({ ...s, feedIntakePerDay: v }))} />
+          <Field label="Harga pakan" suffix="Rp/kg" step={100} value={state.feedPrice} onChange={(v) => setState(s => ({ ...s, feedPrice: v }))} />
+        </div>
+      </div>
+
+      <div className="feedlot-input-group">
+        <h4>🏭 Operasional</h4>
+        <div className="simple-fields">
+          <Field label="Biaya awal" suffix="Rp/ekor" step={50000} value={state.initialCostPerHead} onChange={(v) => setState(s => ({ ...s, initialCostPerHead: v }))} />
+          <Field label="Biaya operasional harian" suffix="Rp/ekor/hari" step={500} value={state.operatingCostPerHeadPerDay} onChange={(v) => setState(s => ({ ...s, operatingCostPerHeadPerDay: v }))} />
+        </div>
+        <p className="simple-field-note">Biaya awal: transport/receiving/vaksin awal. Biaya harian: sewa kandang, overhead, tenaga kerja, listrik/air, maintenance, dll.</p>
+      </div>
+
+      <div className="feedlot-input-group">
+        <h4>💰 Penjualan & target</h4>
+        <div className="simple-fields">
+          <Field label="Harga jual hidup" suffix="Rp/kg" step={500} value={state.salePrice} onChange={(v) => setState(s => ({ ...s, salePrice: v }))} />
+          <Field label="Target keuntungan" suffix="Rp/ekor" step={100000} value={state.targetProfitPerHead} onChange={(v) => setState(s => ({ ...s, targetProfitPerHead: v }))} />
+          <Field label="Jumlah sapi" suffix="ekor" step={1} value={state.heads} onChange={(v) => setState(s => ({ ...s, heads: v }))} />
+        </div>
       </div>
     </section>
 
     <section className="simple-panel result-panel">
       <div className={`simple-hero-result ${heroTone}`}>
-        <span>ESTIMASI UNTUNG / RUGI FEEDLOT</span>
+        <span>HASIL UTAMA FEEDLOT</span>
         <strong>{money(r.profit)} / ekor</strong>
         <b>{heroLabel}</b>
       </div>
 
-      <h4>Performa sapi</h4>
-      <div className="simple-result-grid">
-        <ResultCard label="ADG yang Anda masukkan" value={`${num(r.x.adg,2)} kg/hari`} />
-        <ResultCard label="Bobot akhir proyeksi" value={kg(r.finalWeight)} note={`${num(r.x.purchaseWeight,1)} + (${num(r.x.adg,2)} × ${num(r.x.daysOnFeed,0)} hari)`} />
-        <ResultCard label="Total kenaikan bobot" value={kg(r.liveGain)} />
-        <ResultCard label="Total pakan / ekor" value={kg(r.totalFeedKg)} note={`${num(r.x.feedIntakePerDay,1)} kg × ${num(r.x.daysOnFeed,0)} hari`} />
+      <div className="feedlot-snapshot">
+        <div><span>Bobot masuk</span><strong>{kg(r.x.purchaseWeight)}</strong></div>
+        <div><span>Bobot keluar</span><strong>{kg(r.finalWeight)}</strong></div>
+        <div><span>Gain</span><strong>+{kg(r.liveGain)}</strong></div>
+        <div><span>ADG</span><strong>{num(r.x.adg,2)} kg/hari</strong></div>
+        <div><span>Modal / ekor</span><strong>{money(r.totalCost)}</strong></div>
+        <div><span>Nilai jual</span><strong>{money(r.saleRevenue)}</strong></div>
       </div>
 
-      <h4>Ekonomi pakan</h4>
+      <h4>⚡ Apakah tambahan hari feeding masih menghasilkan nilai?</h4>
+      <div className={`simple-feedlot-status ${dailyTone}`}>
+        <strong>{dailyTitle}</strong>
+        <p>{dailyDetail}</p>
+      </div>
       <div className="simple-result-grid">
-        <ResultCard label="Biaya pakan / ekor" value={money(r.feedCost)} />
-        <ResultCard label="Pakan untuk naik 1 kg" value={feedPerGain} />
-        <ResultCard label="Biaya pakan untuk naik 1 kg" value={feedCostPerGain} />
-        <ResultCard label="Total modal / ekor" value={money(r.totalCost)} />
+        <ResultCard label="Biaya holding / hari" value={`${money(r.dailyHoldingCost)}/ekor/hari`} note="Pakan harian + operasional harian" />
+        <ResultCard label="Nilai pertumbuhan / hari" value={`${money(r.dailyValueGain)}/ekor/hari`} note="ADG × harga jual hidup" />
+        <ResultCard label="Nilai ekonomi tambahan / hari" value={`${money(r.dailyEconomicGain)}/ekor/hari`} tone={r.dailyEconomicGain < 0 ? 'danger' : 'good'} />
+        <ResultCard label="ADG minimal untuk menutup biaya harian" value={formatRatio(r.dailyBreakEvenAdg, 'kg/hari')} />
       </div>
 
-      <h4>Batas aman ekonomi</h4>
-      <div className={`simple-feedlot-status ${adgMessage.tone}`}>
-        <strong>{adgMessage.title}</strong>
-        <p>{adgMessage.detail}</p>
-      </div>
+      <h4>🌾 Biaya pertumbuhan</h4>
       <div className="simple-result-grid">
-        <ResultCard label="ADG minimum tidak rugi" value={adgBreakEven} tone={r.x.adg < r.requiredAdgBreakEven ? 'danger' : 'good'} />
-        <ResultCard label="ADG minimum untuk target" value={adgTarget} tone={r.x.adg >= r.requiredAdgTarget ? 'good' : ''} />
+        <ResultCard label="Biaya pakan / ekor" value={money(r.feedCost)} note={`${money(r.feedCostPerDay)}/hari × ${num(r.x.daysOnFeed,0)} hari`} />
+        <ResultCard label="Biaya operasional selama feeding" value={money(r.operatingCost)} note={`${money(r.x.operatingCostPerHeadPerDay)}/hari × ${num(r.x.daysOnFeed,0)} hari`} />
+        <ResultCard label="Pakan untuk naik 1 kg" value={formatRatio(r.feedPerKgGain, 'kg pakan/kg gain')} />
+        <ResultCard label="Biaya pakan untuk naik 1 kg" value={formatMoneyRatio(r.feedCostPerKgGain, '/kg gain')} />
+        <ResultCard label="Total biaya untuk naik 1 kg" value={formatMoneyRatio(r.totalGrowthCostPerKgGain, '/kg gain')} note="Pakan + biaya operasional harian" />
+        <ResultCard label="Nilai jual 1 kg bobot" value={`${money(r.x.salePrice)}/kg`} />
+      </div>
+
+      <h4>🎯 Batas aman whole-cycle</h4>
+      <div className="simple-result-grid">
+        <ResultCard label="ADG minimum tidak rugi" value={formatRatio(r.requiredAdgBreakEven, 'kg/hari')} tone={r.x.adg < r.requiredAdgBreakEven ? 'danger' : 'good'} />
+        <ResultCard label="ADG minimum untuk target" value={formatRatio(r.requiredAdgTarget, 'kg/hari')} tone={r.x.adg >= r.requiredAdgTarget ? 'good' : ''} />
         <ResultCard label="Harga jual break-even" value={`${money(r.breakEvenSalePrice)}/kg`} />
         <ResultCard label="Harga jual untuk target" value={`${money(r.targetSalePrice)}/kg`} />
+        <ResultCard label="Harga pakan maksimal agar tidak rugi" value={formatMoneyRatio(r.maxFeedPriceBreakEven, '/kg')} />
+        <ResultCard label="Harga pakan maksimal untuk target" value={formatMoneyRatio(r.maxFeedPriceTarget, '/kg')} />
       </div>
 
-      <h4>Hasil seluruh lot</h4>
+      <h4>📊 Hasil seluruh lot</h4>
       <div className="simple-result-grid">
+        <ResultCard label="Total pembelian sapi" value={money(r.lotPurchaseCost)} />
+        <ResultCard label="Total biaya pakan" value={money(r.lotFeedCost)} />
+        <ResultCard label="Total biaya operasional harian" value={money(r.lotOperatingCost)} />
+        <ResultCard label="Total biaya awal" value={money(r.lotInitialCost)} />
         <ResultCard label="Total modal lot" value={money(r.lotTotalCost)} />
         <ResultCard label="Total nilai jual lot" value={money(r.lotRevenue)} />
-        <ResultCard label="Total biaya pakan lot" value={money(r.lotFeedCost)} />
         <ResultCard label="Untung / rugi seluruh lot" value={money(r.lotProfit)} tone={r.lotProfit < 0 ? 'danger' : 'good'} />
       </div>
 
+      <h4>🧪 Kalau kondisi berubah...</h4>
+      <div className="feedlot-whatif-grid">
+        <div>
+          <span>ADG turun 0,10</span>
+          <strong>{money(adgDown.profit)}/ekor</strong>
+          <small>ADG menjadi {num(adgDown.x.adg,2)} kg/hari</small>
+        </div>
+        <div>
+          <span>Pakan naik Rp500/kg</span>
+          <strong>{money(feedUp.profit)}/ekor</strong>
+          <small>Harga pakan menjadi {money(feedUp.x.feedPrice)}/kg</small>
+        </div>
+        <div>
+          <span>Harga jual turun Rp1.000/kg</span>
+          <strong>{money(saleDown.profit)}/ekor</strong>
+          <small>Harga jual menjadi {money(saleDown.x.salePrice)}/kg</small>
+        </div>
+      </div>
+
       <Formula><b>Bobot akhir:</b> {num(r.x.purchaseWeight,1)} kg + ({num(r.x.adg,2)} × {num(r.x.daysOnFeed,0)} hari) = <strong>{kg(r.finalWeight)}</strong></Formula>
-      <Formula><b>Profit:</b> {money(r.saleRevenue)} − {money(r.purchaseCost)} − {money(r.feedCost)} − {money(r.x.otherCostPerHead)} = <strong>{money(r.profit)}</strong></Formula>
-      <p className="simple-footnote">Mode Feedlot Kasar belum memasukkan mortality, shrink, dry matter, finance, tenaga kerja terpisah, atau perubahan konsumsi seiring bobot. “ADG minimum” di sini adalah batas ekonomi dari angka yang Anda masukkan, bukan klaim bahwa ADG tersebut pasti bisa dicapai secara biologis. Masukkan biaya lain yang belum dihitung ke “Biaya lain” atau gunakan Perhitungan Profesional.</p>
+      <Formula><b>Profit:</b> {money(r.saleRevenue)} − {money(r.purchaseCost)} − {money(r.x.initialCostPerHead)} − {money(r.feedCost)} − {money(r.operatingCost)} = <strong>{money(r.profit)}</strong></Formula>
+
+      <p className="simple-footnote">Mode Feedlot Kasar belum memasukkan mortality, shrink, dry matter, finance, perubahan intake sesuai bobot, atau nilai karkas. Daily Economics hanya membandingkan nilai tambahan bobot dengan biaya pakan + operasional harian pada asumsi saat ini; bukan perintah otomatis untuk menjual atau mempertahankan sapi. Gunakan Perhitungan Profesional bila membutuhkan model lengkap.</p>
     </section>
   </div>;
 }
