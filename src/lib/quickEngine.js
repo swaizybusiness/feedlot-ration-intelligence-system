@@ -10,6 +10,19 @@ const requiredDiv = (numerator, denominator) => {
   return denominator > 0 ? numerator / denominator : Number.POSITIVE_INFINITY;
 };
 
+export const quickFeedlotDefaults = Object.freeze({
+  heads: 100,
+  purchaseWeight: 320,
+  purchasePrice: 58000,
+  daysOnFeed: 120,
+  adg: 1.30,
+  feedIntakePerDay: 22,
+  feedPrice: 4200,
+  otherCostPerHead: 500000,
+  salePrice: 62000,
+  targetProfitPerHead: 2000000,
+});
+
 export const quickLiveDefaults = Object.freeze({
   heads: 1,
   purchaseWeight: 320,
@@ -30,6 +43,72 @@ export const quickCarcassDefaults = Object.freeze({
   byproductRevenuePerHead: 1800000,
   targetProfitPerHead: 1500000,
 });
+
+
+function normalizeFeedlot(raw = {}) {
+  const x = { ...quickFeedlotDefaults, ...raw };
+  return {
+    heads: clamp(x.heads, 1, 1000000),
+    purchaseWeight: clamp(x.purchaseWeight, 0, 2000),
+    purchasePrice: clamp(x.purchasePrice, 0, 1000000),
+    daysOnFeed: clamp(x.daysOnFeed, 0, 1000),
+    adg: clamp(x.adg, 0, 10),
+    feedIntakePerDay: clamp(x.feedIntakePerDay, 0, 200),
+    feedPrice: clamp(x.feedPrice, 0, 1000000),
+    otherCostPerHead: clamp(x.otherCostPerHead),
+    salePrice: clamp(x.salePrice, 0, 1000000),
+    targetProfitPerHead: clamp(x.targetProfitPerHead),
+  };
+}
+
+export function calculateQuickFeedlot(raw = {}) {
+  const x = normalizeFeedlot(raw);
+  const liveGain = x.adg * x.daysOnFeed;
+  const finalWeight = x.purchaseWeight + liveGain;
+  const purchaseCost = x.purchaseWeight * x.purchasePrice;
+  const totalFeedKg = x.feedIntakePerDay * x.daysOnFeed;
+  const feedCost = totalFeedKg * x.feedPrice;
+  const totalCost = purchaseCost + feedCost + x.otherCostPerHead;
+  const saleRevenue = finalWeight * x.salePrice;
+  const profit = saleRevenue - totalCost;
+  const feedPerKgGain = liveGain > 0 ? totalFeedKg / liveGain : 0;
+  const feedCostPerKgGain = liveGain > 0 ? feedCost / liveGain : 0;
+  const breakEvenSalePrice = finalWeight > 0 ? totalCost / finalWeight : 0;
+  const targetSalePrice = finalWeight > 0 ? (totalCost + x.targetProfitPerHead) / finalWeight : 0;
+  const requiredFinalWeightBreakEven = x.salePrice > 0 ? totalCost / x.salePrice : Number.POSITIVE_INFINITY;
+  const requiredFinalWeightTarget = x.salePrice > 0 ? (totalCost + x.targetProfitPerHead) / x.salePrice : Number.POSITIVE_INFINITY;
+  const requiredAdgBreakEven = x.daysOnFeed > 0
+    ? Math.max(0, (requiredFinalWeightBreakEven - x.purchaseWeight) / x.daysOnFeed)
+    : Number.POSITIVE_INFINITY;
+  const requiredAdgTarget = x.daysOnFeed > 0
+    ? Math.max(0, (requiredFinalWeightTarget - x.purchaseWeight) / x.daysOnFeed)
+    : Number.POSITIVE_INFINITY;
+
+  return {
+    x,
+    liveGain,
+    finalWeight,
+    purchaseCost,
+    totalFeedKg,
+    feedCost,
+    totalCost,
+    saleRevenue,
+    profit,
+    feedPerKgGain,
+    feedCostPerKgGain,
+    breakEvenSalePrice,
+    targetSalePrice,
+    requiredFinalWeightBreakEven,
+    requiredFinalWeightTarget,
+    requiredAdgBreakEven,
+    requiredAdgTarget,
+    lotPurchaseCost: purchaseCost * x.heads,
+    lotFeedCost: feedCost * x.heads,
+    lotTotalCost: totalCost * x.heads,
+    lotRevenue: saleRevenue * x.heads,
+    lotProfit: profit * x.heads,
+  };
+}
 
 function normalizeLive(raw = {}) {
   const x = { ...quickLiveDefaults, ...raw };
