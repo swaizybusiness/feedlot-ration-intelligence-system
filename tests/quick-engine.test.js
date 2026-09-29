@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {
   calculateQuickLive,
   calculateQuickCarcass,
+  calculateQuickFeedlot,
   quickLiveDefaults,
   quickCarcassDefaults,
+  quickFeedlotDefaults,
 } from '../src/lib/quickEngine.js';
 
 test('quick live model uses direct buy/sell arithmetic', () => {
@@ -75,4 +77,33 @@ test('quick carcass with zero carcass price does not fake a zero-percent target'
   });
   assert.equal(r.requiredDressingTargetPct, Number.POSITIVE_INFINITY);
   assert.equal(r.targetDressingFeasible, false);
+});
+
+test('quick feedlot uses direct growth and feed arithmetic', () => {
+  const r = calculateQuickFeedlot({
+    heads: 100,
+    purchaseWeight: 320,
+    purchasePrice: 58000,
+    daysOnFeed: 120,
+    adg: 1.3,
+    feedIntakePerDay: 22,
+    feedPrice: 4200,
+    otherCostPerHead: 500000,
+    salePrice: 62000,
+    targetProfitPerHead: 2000000,
+  });
+  assert.equal(r.liveGain, 156);
+  assert.equal(r.finalWeight, 476);
+  assert.equal(r.totalFeedKg, 2640);
+  assert.equal(r.feedCost, 11088000);
+  assert.equal(r.purchaseCost, 18560000);
+  assert.equal(r.totalCost, 30148000);
+  assert.equal(r.saleRevenue, 29512000);
+  assert.equal(r.profit, -636000);
+});
+
+test('quick feedlot required ADG lands on target profit', () => {
+  const base = calculateQuickFeedlot(quickFeedlotDefaults);
+  const solved = calculateQuickFeedlot({ ...quickFeedlotDefaults, adg: base.requiredAdgTarget });
+  assert.ok(Math.abs(solved.profit - quickFeedlotDefaults.targetProfitPerHead) < 0.01);
 });
