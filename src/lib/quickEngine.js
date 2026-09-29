@@ -71,8 +71,12 @@ export function calculateQuickFeedlot(raw = {}) {
   const totalCost = purchaseCost + feedCost + x.otherCostPerHead;
   const saleRevenue = finalWeight * x.salePrice;
   const profit = saleRevenue - totalCost;
-  const feedPerKgGain = liveGain > 0 ? totalFeedKg / liveGain : 0;
-  const feedCostPerKgGain = liveGain > 0 ? feedCost / liveGain : 0;
+  const feedPerKgGain = liveGain > 0
+    ? totalFeedKg / liveGain
+    : totalFeedKg > 0 ? Number.POSITIVE_INFINITY : 0;
+  const feedCostPerKgGain = liveGain > 0
+    ? feedCost / liveGain
+    : feedCost > 0 ? Number.POSITIVE_INFINITY : 0;
   const breakEvenSalePrice = finalWeight > 0 ? totalCost / finalWeight : 0;
   const targetSalePrice = finalWeight > 0 ? (totalCost + x.targetProfitPerHead) / finalWeight : 0;
   const requiredFinalWeightBreakEven = x.salePrice > 0 ? totalCost / x.salePrice : Number.POSITIVE_INFINITY;
@@ -83,6 +87,13 @@ export function calculateQuickFeedlot(raw = {}) {
   const requiredAdgTarget = x.daysOnFeed > 0
     ? Math.max(0, (requiredFinalWeightTarget - x.purchaseWeight) / x.daysOnFeed)
     : Number.POSITIVE_INFINITY;
+  const adgGapToBreakEven = Number.isFinite(requiredAdgBreakEven)
+    ? x.adg - requiredAdgBreakEven
+    : Number.NEGATIVE_INFINITY;
+  const adgGapToTarget = Number.isFinite(requiredAdgTarget)
+    ? x.adg - requiredAdgTarget
+    : Number.NEGATIVE_INFINITY;
+  const economicStatus = profit < 0 ? 'loss' : profit >= x.targetProfitPerHead ? 'target' : 'profit';
 
   return {
     x,
@@ -102,6 +113,9 @@ export function calculateQuickFeedlot(raw = {}) {
     requiredFinalWeightTarget,
     requiredAdgBreakEven,
     requiredAdgTarget,
+    adgGapToBreakEven,
+    adgGapToTarget,
+    economicStatus,
     lotPurchaseCost: purchaseCost * x.heads,
     lotFeedCost: feedCost * x.heads,
     lotTotalCost: totalCost * x.heads,
